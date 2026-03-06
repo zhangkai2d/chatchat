@@ -19,6 +19,8 @@ class LLMService:
         except Exception as e:
             # 在工程中，这里应该加入日志记录 (logging)
             raise Exception(f"调用大模型失败: {str(e)}")
+    
+
         
 if __name__ == "__main__":
     test_messages = [
