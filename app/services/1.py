@@ -17,17 +17,18 @@ from datetime import datetime
 env_path = r"F:\zhangkai\code\chatchat\.env"
 load_dotenv(dotenv_path=env_path)
 
-api_key = "sk-48581151e52849faa01799d4f33b2742"
-base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+api_key = os.getenv("DASHSCOPE_API_KEY")
+base_url = os.getenv("DASHSCOPE_BASE_URL")
+print(api_key, base_url)
 
 
+# 2. 初始化搜索组件 (设为 list)
 ddg_official = DuckDuckGoSearchResults(
     num_results=5,
-    output_format="string"  
+    output_format="list" 
 )
 
-
-@tool(response_format="content_and_artifact") # 🌟 开启内容与附件分离模式
+@tool(response_format="content_and_artifact") # 🌟 开启双轨道模式
 def internet_search(
     query: str,
     max_results: int = 5,
@@ -38,22 +39,21 @@ def internet_search(
     try:
         print(f"\n🕵️ Agent 正在发起专业搜索: '{query}'")
         
-        # 1. 调用底层的原始数据 (这是一个 list of dict)
-        # 注意：DuckDuckGoSearchResults 的 invoke 会返回 (content, raw_results)
-        raw_results, _ = ddg_official.invoke(query)
+        # --- 修复点：直接获取列表，不再进行错误的解包 ---
+        raw_results = ddg_official.invoke(query) 
         
-        # 2. 加工给“大模型”看的文本 (精简、省 Token)
-        # 我们只给模型看标题和摘要，不给模型看长长的链接，除非它主动要
+        # 加工给大模型看的文本
         llm_view_list = []
         for i, res in enumerate(raw_results, 1):
             llm_view_list.append(f"[{i}] 标题: {res.get('title')}\n内容: {res.get('snippet')}")
         
         llm_content = "\n\n".join(llm_view_list)
         
-        # 3. 返回元组：(给模型看的字符串, 给程序/前端看的原始列表)
+        # 3. 返回元组 (信件, 附件)
         return llm_content, raw_results
 
     except Exception as e:
+        # 出错时也要返回符合格式的元组
         return f"搜索过程中发生错误: {str(e)}", []
     
 # 获取当前时间并格式化
