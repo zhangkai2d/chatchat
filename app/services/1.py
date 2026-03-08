@@ -115,5 +115,5 @@ def get_agent_response(user_input: str):
 
 # 使用方法：
 print("🤖 Agent 开始蹦字：")
-for char in get_agent_response("你去网上查找资料，帮我解释什么是 LangChain？"):
+for char in get_agent_response("你是谁"):
     print(char, end="", flush=True)

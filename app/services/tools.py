@@ -2,7 +2,8 @@
 from typing import Dict, List, Tuple, Any
 from langchain_core.tools import tool
 from langchain_community.tools import DuckDuckGoSearchResults
-from pydantic import BaseModel, Field  # 🌟 引入 Pydantic
+from pydantic import BaseModel, Field  
+from langchain_core.runnables import RunnableConfig 
 
 # 1. 初始化搜索组件
 
@@ -27,6 +28,7 @@ class SearchInput(BaseModel):
 def internet_search(
     query: str,
     max_results: int = 5,
+    config: RunnableConfig = None
 ) -> Tuple[str, List[Dict[str, Any]]]:
     """
     当需要查询实时新闻、验证事实或者用户要求查询资料后回复时调用。
@@ -35,13 +37,16 @@ def internet_search(
         query (str): 搜索查询关键词。
         max_results (int): 返回的最大搜索结果数量，默认为5。（可自行调节搜索的数量）。
     """
+    configurable = config.get("configurable", {}) if config else {}
+    user_id = configurable.get("user_id", "匿名用户")
 
     ddg_official = DuckDuckGoSearchResults(
     num_results=max_results,
     output_format="list" 
 )
     
-    print(f"\n🕵️ Agent 正在发起专业搜索: '{query}'")
+    
+    print(f"\n🕵️ 用户[{user_id}] 正在搜索: '{query}'")
     raw_results = ddg_official.invoke(query) 
     
     llm_view_list = []

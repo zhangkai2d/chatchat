@@ -1,5 +1,7 @@
 # app/services/agent_service.py
 import os
+from dataclasses import dataclass
+from datetime import datetime
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from deepagents import create_deep_agent
@@ -8,13 +10,30 @@ from langchain.messages import AIMessageChunk
 
 # 引入我们刚才拆分出来的模块
 from app.services.tools import internet_search
-from app.services.prompts import get_agent_system_prompt
+from app.services.prompts import SYSTEM_PROMPT_TEMPLATE
 from app.core.config import settings
 from app.services.middleware import handle_tool_errors
+from langgraph.checkpoint.memory import InMemorySaver
+from langchain.messages import SystemMessage, HumanMessage, AIMessage
+from langchain.agents.middleware import dynamic_prompt, ModelRequest
 
 from time import time
 
+@dataclass
+class Context:
+    user_id: str
+    current_time: str
 
+@dynamic_prompt
+def generate_dynamic_system_prompt(request: ModelRequest) -> str:
+    """根据运行时上下文填充系统提示词中的占位符。"""
+    context_data = request.runtime.context
+
+    # 确保 context_data.current_time 存在并与 SYSTEM_PROMPT_TEMPLATE 中的占位符名称一致
+    formatted_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+        current_time=context_data.current_time
+    )
+    return formatted_prompt
 
 class AgentService:
     def __init__(self):
@@ -26,15 +45,31 @@ class AgentService:
         self.agent = create_agent(
             model=self.model,
             tools=[internet_search], 
-            middleware=[handle_tool_errors],
-            system_prompt=get_agent_system_prompt()
+            middleware=[handle_tool_errors, generate_dynamic_system_prompt],
+            system_prompt="",
+            checkpointer=self.checkpointer,
+            context_schema=Context
         )
+        
 
-    def stream_chat(self, user_input: str):
+    def stream_chat(self, user_input: str, user_id: str = "guest"):
         """流式生成器函数，用于逐字返回结果"""
+
+        now = datetime.now()
+        weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+        current_time_str = now.strftime(f"%Y-%m-%d %H:%M {weekdays[now.weekday()]}")
+
         inputs = {"messages": [{"role": "user", "content": user_input}]}
         
-        for token, metadata in self.agent.stream(inputs, stream_mode="messages"):
+        # 在执行时通过 config 传递上下文
+        config = {"configurable": {"thread_id": user_id}}
+        
+        for token, metadata in self.agent.stream(
+            inputs, 
+            config=config,  # 🌟 关键：将配置传给整个链
+            stream_mode="messages",
+            context=Context(user_id=user_id, current_time=current_time_str)
+        ):
             if isinstance(token, AIMessageChunk):
                 for block in token.content_blocks:
                     if block["type"] == "text":
@@ -54,7 +89,7 @@ class AgentService:
                 base_url=self.base_url,
                 timeout=120,
             )
-
+        self.checkpointer = InMemorySaver()  # 使用内存保存器，适合短期记忆测试
         return model
 
 from time import time
