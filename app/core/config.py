@@ -2,6 +2,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 from dotenv import find_dotenv
+import os
 
 class Settings(BaseSettings):
     # --- 阿里云大模型配置 ---
@@ -11,7 +12,7 @@ class Settings(BaseSettings):
     DASHSCOPE_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
     # --- LangSmith 追踪配置 (可选配置) ---
-    LANGSMITH_TRACING: Optional[str] = "false"
+    LANGSMITH_TRACING: Optional[str] = "true"
     LANGSMITH_ENDPOINT: Optional[str] = None
     LANGSMITH_API_KEY: Optional[str] = None
     LANGSMITH_PROJECT: Optional[str] = None
@@ -25,3 +26,14 @@ class Settings(BaseSettings):
 
 # 实例化一个单例对象，整个项目共享这一个 settings！
 settings = Settings()
+
+# 这样不仅统一了配置入口，还能让底层的 LangChain 顺利读取到
+def setup_langsmith_env():
+    if settings.LANGSMITH_TRACING == "true" and settings.LANGSMITH_API_KEY:
+        os.environ["LANGSMITH_TRACING"] = settings.LANGSMITH_TRACING
+        os.environ["LANGSMITH_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
+        os.environ["LANGSMITH_API_KEY"] = settings.LANGSMITH_API_KEY
+        os.environ["LANGSMITH_PROJECT"] = settings.LANGSMITH_PROJECT
+
+# 执行注入
+setup_langsmith_env()

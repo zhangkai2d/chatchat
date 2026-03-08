@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field  # 🌟 引入 Pydantic
 
 # 1. 初始化搜索组件
 
+
+
 # 1. 🌟 定义高级输入模式 (Advanced Schema)
 class SearchInput(BaseModel):
     """DuckDuckGo 互联网搜索工具的输入参数说明"""
@@ -33,10 +35,12 @@ def internet_search(
         query (str): 搜索查询关键词。
         max_results (int): 返回的最大搜索结果数量，默认为5。（可自行调节搜索的数量）。
     """
+
     ddg_official = DuckDuckGoSearchResults(
     num_results=max_results,
-    output_format="string" 
+    output_format="list" 
 )
+    
     print(f"\n🕵️ Agent 正在发起专业搜索: '{query}'")
     raw_results = ddg_official.invoke(query) 
     
