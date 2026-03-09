@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from deepagents import create_deep_agent
-from langchain.agents import create_agent
+from langchain.agents import create_agent, AgentState
 from langchain.messages import AIMessageChunk
 
 # 引入我们刚才拆分出来的模块
@@ -128,8 +127,6 @@ def test_short_term_memory(service):
 if __name__ == "__main__":
     service = AgentService()
     print("🤖 Agent ：")
-    # for char in service.stream_chat("你去网上查找资料，帮我解释什么是 LangChain？"):
-    #     print(char, end="", flush=True)
     test_short_term_memory(service)
 
 

@@ -1,6 +1,6 @@
 # app/services/tools.py
 from typing import Dict, List, Tuple, Any
-from langchain_core.tools import tool
+from langchain.tools import tool, ToolRuntime
 from langchain_community.tools import DuckDuckGoSearchResults
 from pydantic import BaseModel, Field  
 from langchain_core.runnables import RunnableConfig 
@@ -28,7 +28,7 @@ class SearchInput(BaseModel):
 def internet_search(
     query: str,
     max_results: int = 5,
-    config: RunnableConfig = None
+    runtime: ToolRuntime = None
 ) -> Tuple[str, List[Dict[str, Any]]]:
     """
     当需要查询实时新闻、验证事实或者用户要求查询资料后回复时调用。
@@ -37,17 +37,28 @@ def internet_search(
         query (str): 搜索查询关键词。
         max_results (int): 返回的最大搜索结果数量，默认为5。（可自行调节搜索的数量）。
     """
-    configurable = config.get("configurable", {}) if config else {}
-    user_id = configurable.get("user_id", "匿名用户")
+    user_id = "匿名用户"
+    current_time_str = "未知时间"
 
-    ddg_official = DuckDuckGoSearchResults(
-    num_results=max_results,
-    output_format="list" 
-)
+    if runtime and runtime.context:
+        # 确保你的 Context 类被正确传递和解析
+        # 这里的 runtime.context 会是你的 Context(user_id=..., current_time=...) 实例
+        if hasattr(runtime.context, "user_id"):
+            user_id = runtime.context.user_id
+        if hasattr(runtime.context, "current_time"):
+            current_time_str = runtime.context.current_time
+
+    if runtime and runtime.context:
+        if hasattr(runtime.context, "current_time"):
+            current_time_str = runtime.context.current_time
+
+
+    ddg_official = DuckDuckGoSearchResults(num_results=max_results, output_format="list")
     
+    print(f"\n🕵️ 用户[{user_id}] 正在搜索: '{query}')")
     
-    print(f"\n🕵️ 用户[{user_id}] 正在搜索: '{query}'")
-    raw_results = ddg_official.invoke(query) 
+    # 使用增强后的查询词进行搜索
+    raw_results = ddg_official.invoke(query)
     
     llm_view_list = []
     for i, res in enumerate(raw_results, 1):
